@@ -1,4 +1,6 @@
-/* global $ */
+/* global $, Applab */
+
+// TODO (brent) - make sure you consider transition to screens from no screens
 
 // TODO (brent) - make it so that we dont need to specify .jsx. This currently
 // works in our grunt build, but not in tests
@@ -16,17 +18,15 @@ var designMode = module.exports;
 
 var currentlyEditedElement = null;
 
+var GRID_SIZE = 5;
+
 /**
  * If in design mode and program is not running, display Properties
  * pane for editing the clicked element.
  * @param event
  */
 designMode.onDivApplabClick = function (event) {
-<<<<<<< HEAD
   if (!Applab.isInDesignMode() ||
-=======
-  if (Applab.isInDesignMode() ||
->>>>>>> reactive design/code mode toggle
       $('#resetButton').is(':visible')) {
     return;
   }
@@ -45,15 +45,23 @@ designMode.onDivApplabClick = function (event) {
  * @param {ElementType} elementType Type of element to create
  * @param {number} left Position from left.
  * @param {number} top Position from top.
+ * @returns {HTMLElement} The generated element
  */
 designMode.createElement = function (elementType, left, top) {
   var element = elementLibrary.createElement(elementType, left, top);
 
-  var divApplab = document.getElementById('divApplab');
-  divApplab.appendChild(element);
+  var parent;
+  if ($(element).hasClass('screen')) {
+    parent = document.getElementById('divApplab');
+  } else {
+    parent = $('.screen').filter(':visible').first()[0];
+  }
+  parent.appendChild(element);
   makeDraggable($(element));
   designMode.editElementProperties(element);
-  Applab.levelHtml = designMode.serializeToLevelHtml();
+  designMode.serializeToLevelHtml();
+
+  return element;
 };
 
 designMode.editElementProperties = function(element) {
@@ -192,7 +200,7 @@ designMode.onPropertyChange = function(element, name, value) {
     default:
       throw "unknown property name " + name;
   }
-  Applab.levelHtml = designMode.serializeToLevelHtml();
+  designMode.serializeToLevelHtml();
 };
 
 designMode.onDonePropertiesButton = function() {
@@ -201,7 +209,7 @@ designMode.onDonePropertiesButton = function() {
 
 designMode.onDeletePropertiesButton = function(element, event) {
   element.parentNode.removeChild(element);
-  Applab.levelHtml = designMode.serializeToLevelHtml();
+  designMode.serializeToLevelHtml();
   designMode.clearProperties();
 };
 
@@ -256,6 +264,7 @@ designMode.onDepthChange = function (element, depthDirection) {
 };
 
 designMode.serializeToLevelHtml = function () {
+  console.log('serializeToLevelHtml');
   var s = new XMLSerializer();
   var divApplab = document.getElementById('divApplab');
   var clone = divApplab.cloneNode(true);
@@ -264,7 +273,7 @@ designMode.serializeToLevelHtml = function () {
   // things like $().data or $().draggable('destroy'), so I just manually
   // remove the classes instead.
   $(clone).find('*').removeClass('ui-draggable ui-draggable-handle');
-  return s.serializeToString(clone);
+  Applab.levelHtml = s.serializeToString(clone);
 };
 
 /**
@@ -272,6 +281,7 @@ designMode.serializeToLevelHtml = function () {
  * @param allowDragging {boolean}
  */
 designMode.parseFromLevelHtml = function(rootEl, allowDragging) {
+  console.log('parseFromLevelHTML');
   if (!Applab.levelHtml) {
     return;
   }
@@ -328,7 +338,6 @@ designMode.toggleDesignMode = function(enable) {
  * @param {jQuery} jq jQuery object containing DOM elements to make draggable.
  */
 function makeDraggable (jq) {
-  var GRID_SIZE = 5;
   jq.draggable({
     cancel: false,  // allow buttons and inputs to be dragged
     drag: function(event, ui) {
@@ -361,7 +370,7 @@ function makeDraggable (jq) {
       ui.position.top = newTop;
     },
     stop: function(event, ui) {
-      Applab.levelHtml = designMode.serializeToLevelHtml();
+      designMode.serializeToLevelHtml();
     }
   });
 }
@@ -369,7 +378,16 @@ function makeDraggable (jq) {
 designMode.configureDragAndDrop = function () {
   // Allow elements to be dragged and dropped from the design mode
   // element tray to the play space.
-  var GRID_SIZE = 5;
+  $('.new-design-element').draggable({
+    containment:"#codeApp",
+    helper:"clone",
+    appendTo:"#codeApp",
+    revert: 'invalid',
+    zIndex: 2,
+    start: function() {
+      studioApp.resetButtonClick();
+    }
+  });
   $('#visualization').droppable({
     accept: '.new-design-element',
     drop: function (event, ui) {
@@ -386,7 +404,11 @@ designMode.configureDragAndDrop = function () {
       left -= (left + GRID_SIZE / 2) % GRID_SIZE - GRID_SIZE / 2;
       top -= (top + GRID_SIZE / 2) % GRID_SIZE - GRID_SIZE / 2;
 
-      designMode.createElement(elementType, left, top);
+      var element = designMode.createElement(elementType, left, top);
+      // TODO (brent) use enum
+      if (elementType === 'SCREEN') {
+        designMode.changeScreen(element.id);
+      }
     }
   });
 };
@@ -402,17 +424,32 @@ designMode.configureDesignToggleRow = function () {
       studioApp, Applab.onDesignModeButton);
   var throttledDesignModeClick = _.debounce(designModeClick, 250, true);
 
-  // TODO (brent) - still need logic to generate list of screens, and rerender
-  // DesignToggleRow on changes
+  var firstScreen = $('.screen').first().attr('id');
+  designMode.changeScreen(firstScreen);
+};
+
+designMode.changeScreen = function (screenId) {
+  console.log('change screen: ' + screenId);
+  var screenIds = [];
+
+  $('.screen').each(function () {
+    screenIds.push(this.id);
+    $(this).toggle(this.id === screenId);
+  });
+
   React.render(
     React.createElement(DesignToggleRow, {
-      screens: ['screen1'],
-      onDesignModeButton: throttledDesignModeClick,
+      initialScreen: screenId,
+      screens: screenIds,
+      onDesignModeButton: Applab.onDesignModeButton,
       onCodeModeButton: Applab.onCodeModeButton,
-      handleManageAssets: showAssetManager
+      handleManageAssets: showAssetManager,
+      onScreenChange: designMode.changeScreen
     }),
     designToggleRow
   );
+
+  designMode.serializeToLevelHtml();
 };
 designMode.renderDesignModeBox = function(element) {
   var designModeBox = document.getElementById('designModeBox');
@@ -441,4 +478,3 @@ designMode.configureDesignModeHeaders = function() {
 
   React.render(React.createElement(DesignModeHeaders), designModeHeaders);
 };
-

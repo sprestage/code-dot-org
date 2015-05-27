@@ -264,7 +264,6 @@ designMode.onDepthChange = function (element, depthDirection) {
 };
 
 designMode.serializeToLevelHtml = function () {
-  console.log('serializeToLevelHtml');
   var s = new XMLSerializer();
   var divApplab = document.getElementById('divApplab');
   var clone = divApplab.cloneNode(true);
@@ -281,7 +280,6 @@ designMode.serializeToLevelHtml = function () {
  * @param allowDragging {boolean}
  */
 designMode.parseFromLevelHtml = function(rootEl, allowDragging) {
-  console.log('parseFromLevelHTML');
   if (!Applab.levelHtml) {
     return;
   }
@@ -405,8 +403,7 @@ designMode.configureDragAndDrop = function () {
       top -= (top + GRID_SIZE / 2) % GRID_SIZE - GRID_SIZE / 2;
 
       var element = designMode.createElement(elementType, left, top);
-      // TODO (brent) use enum
-      if (elementType === 'SCREEN') {
+      if (elementType === elementLibrary.ElementType.SCREEN) {
         designMode.changeScreen(element.id);
       }
     }
@@ -429,7 +426,6 @@ designMode.configureDesignToggleRow = function () {
 };
 
 designMode.changeScreen = function (screenId) {
-  console.log('change screen: ' + screenId);
   var screenIds = [];
 
   $('.screen').each(function () {

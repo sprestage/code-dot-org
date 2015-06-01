@@ -292,10 +292,6 @@ designMode.parseFromLevelHtml = function(rootEl, allowDragging) {
   var levelDom = $.parseHTML(Applab.levelHtml);
   var children = $(levelDom).children();
 
-  if (children.length === 1 && !children.eq(0).hasClass('screen')) {
-    console.log('needs conversion');
-  }
-
   children.appendTo(rootEl);
   if (allowDragging) {
     makeDraggable(children);
@@ -307,8 +303,9 @@ designMode.parseFromLevelHtml = function(rootEl, allowDragging) {
 };
 
 designMode.onClear = function() {
-  // TODO (brent) - just this screen. Consider case where this gets called on
-  // load too (might need two separate funcs)
+  // TODO (brent) - have this clear just the current screen instead of everything
+  // (along with a confirmation experience). Consider the case where this gets
+  // called on load too - might need to two separate funcs
   document.getElementById('divApplab').innerHTML = Applab.levelHtml = "";
   elementLibrary.resetIds();
   designMode.createElement(elementLibrary.ElementType.SCREEN, 0, 0);
@@ -439,12 +436,6 @@ designMode.configureDesignToggleRow = function () {
 };
 
 designMode.changeScreen = function (screenId) {
-  // TODO (brent) - may end up wanting to share some of this code with our
-  // API that allows changing the screen. or at the least come up with a good
-  // name to indicate how this and the api function are different
-
-  // TODO (brent) - should changing the screen reset the active canvas?
-
   var screenIds = [];
   $('.screen').each(function () {
     screenIds.push(this.id);
